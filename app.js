@@ -46,18 +46,32 @@ function popSound(big) {
   o.connect(g); g.connect(audioCtx.destination);
   o.start(t); o.stop(t + 0.2);
 }
-function spawnBubble(fromBottom) {
+function spawnBubble(fromCenter) {
   var r = rand(28, 62);
   var roll = Math.random();
   var type = 'normal';
   if (roll > 0.9) type = 'dragon';
   else if (roll > 0.7) type = 'mouse';
+  var x, y, alpha;
+  if (fromCenter) {
+    // Replenish: pop in at the center with fade-in, then float up.
+    x = W / 2 + rand(-W * 0.15, W * 0.15);
+    y = H / 2 + rand(-H * 0.12, H * 0.12);
+    alpha = 0;
+  } else {
+    // Initial load: scatter around the center band so screen starts full.
+    x = rand(W * 0.12 + r, Math.max(W * 0.12 + r + 1, W * 0.88 - r));
+    y = rand(H * 0.25, H * 0.75);
+    alpha = 1;
+  }
+  x = Math.min(Math.max(x, r), Math.max(r, W - r));
+  y = Math.min(Math.max(y, r), Math.max(r, H - r));
   bubbles.push({
-    x: rand(r, Math.max(r + 1, W - r)),
-    y: fromBottom ? H + r + rand(0, 80) : rand(0, H),
+    x: x,
+    y: y,
     r: r, vy: -(rand(25, 55) + (60 - r) * 0.6),
     ph: rand(0, 6.28), sp: rand(1.2, 2.8), amp: rand(8, 26),
-    type: type, color: pick(COLORS), alpha: fromBottom ? 0 : 1
+    type: type, color: pick(COLORS), alpha: alpha
   });
 }
 function burst(x, y, color, n) {
