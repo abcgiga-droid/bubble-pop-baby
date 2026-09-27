@@ -1,0 +1,19 @@
+{
+  "name": "Bubbles",
+  "short_name": "Bubbles",
+  "description": "Pop bubbles with baby dragon and mouse",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#1e1b4b",
+  "theme_color": "#1e1b4b",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
