@@ -54,7 +54,7 @@ function spawnBubble(fromCenter) {
   else if (roll > 0.7) type = 'mouse';
   var x, y, alpha;
   if (fromCenter) {
-    // Replenish: pop in at the center with fade-in, then float up.
+    // Replenish: pop in at the center with fade-in, then drift in a random direction.
     x = W / 2 + rand(-W * 0.15, W * 0.15);
     y = H / 2 + rand(-H * 0.12, H * 0.12);
     alpha = 0;
@@ -66,10 +66,15 @@ function spawnBubble(fromCenter) {
   }
   x = Math.min(Math.max(x, r), Math.max(r, W - r));
   y = Math.min(Math.max(y, r), Math.max(r, H - r));
+  // Drift in a random direction (not just upward), slower for bigger bubbles.
+  var ang = rand(0, 6.2832);
+  var speed = rand(20, 55) + (62 - r) * 0.5;
   bubbles.push({
     x: x,
     y: y,
-    r: r, vy: -(rand(25, 55) + (60 - r) * 0.6),
+    r: r,
+    vx: Math.cos(ang) * speed,
+    vy: Math.sin(ang) * speed,
     ph: rand(0, 6.28), sp: rand(1.2, 2.8), amp: rand(8, 26),
     type: type, color: pick(COLORS), alpha: alpha
   });
@@ -154,11 +159,13 @@ function frame(now) {
     var b = bubbles[i];
     if (b.alpha < 1) b.alpha = Math.min(1, b.alpha + dt * 2);
     b.ph += b.sp * dt;
-    b.y += b.vy * dt;
-    b.x += Math.sin(b.ph) * b.amp * dt;
-    if (b.x < b.r) b.x = b.r;
-    if (b.x > W - b.r) b.x = W - b.r;
-    if (b.y < -b.r - 20) { bubbles.splice(i, 1); spawnBubble(true); continue; }
+    b.x += (b.vx + Math.cos(b.ph) * b.amp) * dt;
+    b.y += (b.vy + Math.sin(b.ph) * b.amp) * dt;
+    // Soft-bounce off every edge so bubbles roam in all directions forever.
+    if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx); }
+    if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
+    if (b.y < b.r) { b.y = b.r; b.vy = Math.abs(b.vy); }
+    if (b.y > H - b.r) { b.y = H - b.r; b.vy = -Math.abs(b.vy); }
     drawBubble(b, now);
   }
   for (var k = particles.length - 1; k >= 0; k--) {
