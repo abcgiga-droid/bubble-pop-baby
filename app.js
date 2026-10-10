@@ -29,30 +29,82 @@ function emojiFor(t) {
 }
 
 var audioCtx = null;
+var lastSfx = 0;
 function ensureAudio() {
   if (!audioCtx) {
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
   }
   if (audioCtx && audioCtx.state === 'suspended') { audioCtx.resume(); }
 }
-function popSound(big) {
+function tone(opt) {
+  // One tiny synth blip: {f0, f1, dur, type, vol, delay}
   if (!audioCtx) return;
-  var t = audioCtx.currentTime;
-  // Cheerful two-note giggle: pitch jumps up, then sparkles.
-  var notes = big ? [rand(450, 550), rand(750, 950)] : [rand(650, 900), rand(1100, 1500)];
-  for (var n = 0; n < 2; n++) {
-    var o = audioCtx.createOscillator();
-    var g = audioCtx.createGain();
-    o.type = n === 0 ? 'sine' : 'triangle';
-    var base = notes[n];
-    var st = t + n * 0.07;
-    o.frequency.setValueAtTime(base, st);
-    o.frequency.exponentialRampToValueAtTime(base * 1.6, st + 0.08);
-    g.gain.setValueAtTime(0.3, st);
-    g.gain.exponentialRampToValueAtTime(0.001, st + 0.16);
-    o.connect(g); g.connect(audioCtx.destination);
-    o.start(st); o.stop(st + 0.18);
+  var t = audioCtx.currentTime + (opt.delay || 0);
+  var o = audioCtx.createOscillator();
+  var g = audioCtx.createGain();
+  o.type = opt.type || 'sine';
+  o.frequency.setValueAtTime(Math.max(30, opt.f0), t);
+  if (opt.f1) o.frequency.exponentialRampToValueAtTime(Math.max(30, opt.f1), t + (opt.dur || 0.15));
+  if (opt.slide) {
+    // Cartoon slide up-then-down (boing / squeak feel).
+    var mid = t + (opt.dur || 0.15) * 0.45;
+    o.frequency.exponentialRampToValueAtTime(Math.max(30, opt.slide), mid);
+    if (opt.f1) o.frequency.exponentialRampToValueAtTime(Math.max(30, opt.f1), t + (opt.dur || 0.15));
   }
+  g.gain.setValueAtTime(opt.vol || 0.3, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + (opt.dur || 0.15));
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(t); o.stop(t + (opt.dur || 0.15) + 0.02);
+}
+function popSound(big, kind) {
+  if (!audioCtx) return;
+  // Throttle: never stack more than one pop per 35ms (fast drags stay clean).
+  var nowMs = performance.now();
+  if (nowMs - lastSfx < 35) return;
+  lastSfx = nowMs;
+  var style = Math.floor(Math.random() * 6);
+  var base = rand(500, 900);
+  if (style === 0) {
+    // Classic giggle pop: high blip + sparkle.
+    tone({ f0: base, f1: base * 1.9, dur: 0.12, type: 'sine', vol: 0.35 });
+    tone({ f0: base * 1.5, f1: base * 2.4, dur: 0.14, type: 'triangle', vol: 0.25, delay: 0.06 });
+  } else if (style === 1) {
+    // Boing: slide up then down.
+    tone({ f0: rand(250, 350), slide: rand(700, 900), f1: rand(180, 260), dur: 0.22, type: 'sine', vol: 0.35 });
+  } else if (style === 2) {
+    // Squeak-toy: quick upward chirp x2.
+    tone({ f0: rand(900, 1200), f1: rand(1600, 2200), dur: 0.09, type: 'square', vol: 0.12 });
+    tone({ f0: rand(1000, 1300), f1: rand(1800, 2400), dur: 0.09, type: 'square', vol: 0.1, delay: 0.07 });
+  } else if (style === 3) {
+    // Sparkle gliss: 3 rising fairy notes.
+    for (var i = 0; i < 3; i++) {
+      var f = base * (1 + i * 0.35);
+      tone({ f0: f, f1: f * 1.3, dur: 0.1, type: 'triangle', vol: 0.22, delay: i * 0.05 });
+    }
+  } else if (style === 4) {
+    // Bubbly bloop: low wobble pop.
+    tone({ f0: rand(300, 420), f1: rand(600, 800), dur: 0.14, type: 'sine', vol: 0.4 });
+    tone({ f0: rand(150, 200), f1: rand(90, 120), dur: 0.12, type: 'sine', vol: 0.3, delay: 0.02 });
+  } else {
+    // Toy horn: happy major-3rd toot.
+    tone({ f0: rand(520, 620), dur: 0.1, type: 'triangle', vol: 0.3 });
+    tone({ f0: rand(650, 780), dur: 0.14, type: 'triangle', vol: 0.3, delay: 0.08 });
+  }
+  if (big) {
+    // Big bubbles (dragon / star / rainbow) get a bonus happy arpeggio.
+    var root = kind === 'dragon' ? rand(380, 430) : kind === 'star' ? rand(620, 700) : rand(500, 560);
+    var steps = [1, 1.25, 1.5, 2];
+    for (var k = 0; k < steps.length; k++) {
+      tone({ f0: root * steps[k], f1: root * steps[k] * 1.05, dur: 0.12, type: 'triangle', vol: 0.2, delay: 0.1 + k * 0.06 });
+    }
+  }
+}
+function missSound() {
+  if (!audioCtx) return;
+  var nowMs = performance.now();
+  if (nowMs - lastSfx < 80) return;
+  lastSfx = nowMs;
+  tone({ f0: rand(700, 900), f1: rand(1100, 1300), dur: 0.06, type: 'sine', vol: 0.08 });
 }
 function spawnBubble(fromCenter) {
   var r = rand(26, 66);
@@ -138,7 +190,7 @@ function popAt(px, py) {
       floaters.push({ x: b.x + rand(-10, 10), y: b.y - b.r * 0.4, life: 0, max: rand(0.8, 1.2),
         txt: b.face !== '' ? b.face : pick(FUN_WORDS), sz: b.face !== '' ? b.r * 0.9 : rand(20, 30) });
       flash = Math.min(0.25, flash + 0.08);
-      popSound(big);
+      popSound(big, b.kind);
       if (navigator.vibrate) { try { navigator.vibrate(big ? [30, 30, 30] : 25); } catch (e) {} }
       // Every 10 pops: rainbow celebration + bonus star bubble!
       if (pops % 10 === 0) {
@@ -151,6 +203,7 @@ function popAt(px, py) {
   }
   // Missed tap: tiny sparkle so every touch feels alive.
   burst(px, py, '#ffffff', 4);
+  missSound();
   return false;
 }
 function onPoint(x, y) { ensureAudio(); popAt(x, y); }

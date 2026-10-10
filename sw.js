@@ -1,4 +1,4 @@
-var CACHE = 'bubbles-v2-fun';
+var CACHE = 'bubbles-v3-sounds';
 var FILES = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
